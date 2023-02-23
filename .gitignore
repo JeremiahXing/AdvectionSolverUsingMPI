@@ -1,0 +1,4 @@
+*.sh.e*
+*.sh.o*
+*.o
+testAdvect
