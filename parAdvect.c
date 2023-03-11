@@ -29,13 +29,18 @@ void initParParams(int M_, int N_, int P_, int Q_, int verb) {
   MPI_Comm_size(comm, &nprocs);
 
   P0 = rank;
-  M0 = (M / P) * P0;
-  M_loc = (P0 < P-1)? (M / P): (M - M0);
+  M0 = (M / P) * P0; //the starting row (M0)
+  M_loc = (P0 < P-1)? (M / P): (M - M0); //local number of rows (M_loc)
+  // Why this M_loc need ?: operation 
+  //-- in case M cant divided by P, e.g. m = 8 and p = 3 then p0 takes 2; p1 takes 2; p2 takes 4
 
-  assert (Q == 1);
-  Q0 = 0;
-  N0 = 0;
-  N_loc = N;
+  // assert (Q == 1);
+  // Q0 = 0;
+  // N0 = 0;
+  // N_loc = N;
+
+  N0 = (N / Q) * Q0;
+  N_loc = (Q0 < Q-1)? (N / Q): (N - N0);
 } //initParParams()
 
 
@@ -59,7 +64,7 @@ static void updateBoundary(double *u, int ldu) {
       V(u, M_loc+1, j) = V(u, 1, j);      
     }
   } else {
-    int topProc = (rank + 1) % nprocs, botProc = (rank - 1 + nprocs) % nprocs;
+    // int topProc = (rank + 1) % nprocs, botProc = (rank - 1 + nprocs) % nprocs;
     // original solution start
     // MPI_Send(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm);
     // MPI_Recv(&V(u, 0, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, 
@@ -70,6 +75,7 @@ static void updateBoundary(double *u, int ldu) {
     // original solution end
 
     // Task_1 solution start
+    // int topProc = (rank + 1) % nprocs, botProc = (rank - 1 + nprocs) % nprocs;
     // if (rank % 2 == 0){ 
     // MPI_Send(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm);
     // MPI_Recv(&V(u, 0, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, 
@@ -88,13 +94,17 @@ static void updateBoundary(double *u, int ldu) {
     // Task_1 solution end
 
     //Task_2 solution start
-    MPI_Request request_s, request_r;
-    MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &request_s);
-    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &request_r);
-    MPI_Wait(&request_s, MPI_STATUS_IGNORE);
-    MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &request_s);
-    MPI_Irecv(&V(u, M_loc+1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &request_r);
-    MPI_Wait(&request_s, MPI_STATUS_IGNORE);
+    int topProc = (rank + Q) % nprocs;
+    int botProc = (rank - Q + nprocs) % nprocs;
+    MPI_Request req[4];
+    MPI_Status stat[4];
+
+    MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, M_loc+1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
+    
+    MPI_Waitall(4, req, stat);
     //Task_2 solution end
   }
 
@@ -105,6 +115,24 @@ static void updateBoundary(double *u, int ldu) {
       V(u, i, N_loc+1) = V(u, i, 1);
     }
   } else {
+    //as elements in a column in a 2d array are not location neighboring we need to define a new type column
+    MPI_Datatype column_type;
+    MPI_Type_vector(M_loc, 1, N_loc+2, MPI_DOUBLE, &column_type);
+    MPI_Type_commit(&column_type);
+
+    int leftProc = (rank - 1 + Q) % Q + (rank / Q) * Q;
+    int rightProc = (rank + 1) % Q + (rank / Q) * Q;
+
+    MPI_Request req[4];
+    MPI_Status stat[4];
+
+    MPI_Isend(&V(u, 1, N_loc), 1, column_type, rightProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, 1, N_loc+1), 1, column_type, rightProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, 1, 1), 1, column_type, leftProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, 1, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[3]);
+
+    MPI_Waitall(4, req, stat);
+    MPI_Type_free(&column_type);
   }
 } //updateBoundary()
 

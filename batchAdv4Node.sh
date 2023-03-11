@@ -9,17 +9,18 @@
 e=# echo
 
 r=100
-M=1000 # may need to make bigger
+M=10000 # may need to make bigger
 N=$M
 opts="" # "-o"
 ps="48 96 192"
+P=$ps / 2 # new
 
 module load openmpi
 
 for p in $ps; do
     echo ""
-    echo mpirun -np $p ./testAdvect $opts $M $N $r
-    $e mpirun -np $p ./testAdvect $opts $M $N $r
+    echo mpirun -np $p ./testAdvect $opts $P $M $N $r
+    $e mpirun -np $p ./testAdvect $opts $P $M $N $r
     echo ""
 done
 

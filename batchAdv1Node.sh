@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -q express
 #PBS -j oe
-#PBS -l walltime=00:01:00,mem=32GB
+#PBS -l walltime=00:01:00,mem=128GB
 #PBS -l wd
 #PBS -l ncpus=48
 #
@@ -9,7 +9,7 @@
 e= #echo
 
 r=100
-M=1000 # may need to be bigger
+M=10000 # may need to be bigger
 N=$M
 opts="" # "-o" 
 ps="3 6 12 24 48"
