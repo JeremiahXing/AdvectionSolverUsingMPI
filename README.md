@@ -12,7 +12,7 @@ This assignment is worth 25% of your total course mark. It will be marked out of
 
 This assignment must be submitted electronically. To obtain a copy of the template source files, you must fork the gitlab project [`comp4300-assignment1`](https://gitlab.cecs.anu.edu.au/comp4300/2023/comp4300-assignment1) into your own gitlab area, and push the final version of your files into your fork of the `comp4300-assignment1` gitlab project before the deadline.
 
-The files that will be marked are a report `ps-ass1Rep.pdf` and a C source code file `parAdvect.c`. The report should be **at most**  3,000 words long (lines of code not included). **The report has a large relative weight in the final mark, and should be well-written. Submissions without report will get a very low mark.** 
+The files that will be marked are a report `ps-ass1Rep.pdf` and a C source code file `parAdvect.c`. The report must be **at most**  3,000 words long (lines of code not included). **The report has a large relative weight in the final mark, and should be well-written. Submissions without report will get a very low mark.** 
 
 Please see [here](https://comp.anu.edu.au/courses/comp4300/assignments_workflow/) for additional workflow notes. Most importantly, use the login node only for debugging purposes on a moderate number of MPI tasks (e.g., 1-8). The actual performance analysis should be done on the compute nodes using the job scripts provided in this repo. 
 
