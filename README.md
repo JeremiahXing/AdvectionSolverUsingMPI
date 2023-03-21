@@ -1,7 +1,7 @@
 # COMP4300/8300 Parallel Systems Assignment 1, 2023
 # A Distributed Advection Solver Using MPI
 
-## Deadline: 07/04/2023, 5PM
+## Deadline: 17/04/2023, 5PM
 
 *(Please report any errors, omissions and ambiguities to the course lecturers)* \
 *(We may make small amendments and fixes to this document after its release; please keep an eye on the commit history after release date just in case)*
