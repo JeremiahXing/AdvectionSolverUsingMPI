@@ -105,9 +105,9 @@ Search the literature and report on techniques to improve the performance of ste
 
 The performance of stencil computations is primarily limited by memory system performance. Briefly explain whether a combination of two of the techniques mentioned above may alleviate this, and if so what are the performance trade-offs of such an approach. 
 
-9. **Devise a new optimization technique** 
+9. **Implement an optimization technique** 
 
-Find and describe some new optimization that could potentially improve the performance of the parallel advection solver. Implement and evaluate this on Gadi. Put your code in `parAdvectExtra()`, which is activated by the `-x` option. 
+Implement an optimization to improve the performance of the parallel advection solver. This might be different from the ones discussed in question 7, but not necessarily. Evaluate the performance of the optimization technique on Gadi. Put your code in `parAdvectExtra()`, which is activated by the `-x` option. 
 
 ## Requirements
 
