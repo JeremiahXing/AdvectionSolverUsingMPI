@@ -107,7 +107,7 @@ The performance of stencil computations is primarily limited by memory system pe
 
 9. **Devise a new optimization technique** 
 
-Find and describe some new optimization that could potentially improve the performance of the parallel advection solver. If possible, implement and evaluate this on Gadi. Put your code in `parAdvectExtra()`, which is activated by the `-x` option. 
+Find and describe some new optimization that could potentially improve the performance of the parallel advection solver. Implement and evaluate this on Gadi. Put your code in `parAdvectExtra()`, which is activated by the `-x` option. 
 
 ## Requirements
 
