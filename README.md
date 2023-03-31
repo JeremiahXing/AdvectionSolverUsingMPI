@@ -53,17 +53,17 @@ You should read the files and familiarize yourself with what they contain.
 
 Experimentation for this section should be done on the Gadi supercomputer using batch jobs. 
 
-1. **Deadlock issues** 
+1. **Deadlock issues** (Mark: 3/50)
 
 The prototype function `parAdvect()` in `parAdvect.c` should work for `Q=1`. However, it can deadlock (try `p=2`, `M=2` and a large `N`). In your report, write down for what values of `N` it deadlocks, and explain why. Without using non-blocking send or receives, or buffered sends, fix the halo-exchange code in `parAdvect.c` to avoid the deadlock. Describe the fixed code in your report. 
 
-2. **The effect of non-blocking communication** 
+2. **The effect of non-blocking communication** (Mark: 3/50)
 
 Rewrite your halo-exchange code to use non-blocking sends and receives. Use CPP preprocessing directives so you can activate either version of communication. Do some experiments on up to 4 nodes to determine if this improves performance (choose parameters to maximize the impact of communication), and write the results in your report. 
 
 From now on, use the better-performing (or otherwise preferred, if performance is much the same) version of communication, leaving the other version commented out. 
 
-3. **Performance modelling and calibration**
+3. **Performance modelling and calibration** (Mark: 8/50)
 
 In your report, write a performance model for the computation, in terms of the above program parameters, and the coefficients for communication startup time ($`t_s`$), communication cost per word time ($`t_w`$), and per element computation time ($`t_f`$) for the advection solver. 
 
@@ -73,7 +73,7 @@ Within one Gadi node, perform a strong scaling analysis and compare predicted vs
 
 Present the results in your report, commenting on any discrepancies. *Hint:* at certain points, other parts of the memory hierarchy may have an effect on the timings. 
 
-4. **The effect of 2D process grids**
+4. **The effect of 2D process grids** (Mark: 8/50)
 
 Extend your code in `parAdvect()` for two-dimensional process grids, i.e. `Q>1`. Extend your performance model accordingly. 
 
@@ -83,13 +83,13 @@ Conduct experiments with fixed `M=N` on one node to see if the process grid aspe
 
 Also conduct experiments on 1 to 4 nodes (48 to 192 cores). Do this also for experiments in the questions below. *Hint:* restrict the problem size to fit within the combined L3 cache of 2 Cascade Lake sockets (48 cores). 
 
-5. **Overlapping communication with computation**
+5. **Overlapping communication with computation** (Mark: 8/50)
 
 An advanced technique in message-passing parallel algorithms is to hide communication costs by updating the data that must be communicated (for the next step) first, and send this before updating the rest of the data. In this case, it is the inner halo. Implement this technique in `parAdvectOverlap()`. 
 
 In your report, discuss what the performance impact of this technique might be, and describe how it would affect your performance model. Using the `-o` option, run appropriate experiments to determine whether it is effective, and record and discuss in your report. It will be sufficient to implement this just for 1D process grids, i.e. for `Q=1`. However, in this case, you should explain why achieving overlap for 2D communication is difficult. 
 
-6. **Wide halo transfers** 
+6. **Wide halo transfers** (Mark: 8/50)
 
 In stencil computations, wide halos are a technique intended to reduce parallel overheads. Instead of exchanging a halo of width 1 at process boundaries every simulated timestep, a halo of width `w >= 1` can be exchanged every `w` timesteps. In each process, let the local advection field size (without halos) be `(m)x(n)`. You will notice that the test program allocates an `(m+2*w)x(n+2*w)` array to support this. Using the widened halo, we perform `w` updates to the local field of sizes `(m+2*w-2)x(n+2*w-2), (m+2*w-4)x(n+2*w-4), ..., (m)x(n)`.
 
@@ -97,15 +97,15 @@ Like the normal halo, the widened halos are generated from the interior points o
 
 In your report, discuss what you think are the potential advantages of wide halos, and describe how it would affect your performance models. In the function `parAdvectWide()` in `parAdvect.c`, extend your 2D code with the wide halo technique and test it using the `-w` option. Run appropriate experiments to determine whether it is effective, and record and discuss in your report. 
 
-7. **Literature Review (optimization techniques for stencil computations)**
+7. **Literature Review (optimization techniques for stencil computations)** (Mark: 6/50)
 
 Search the literature and report on techniques to improve the performance of stencil computations. *Hint:* the tiled stencil technique may be interesting. Provide a summary of the technique, including its motivation and its effectiveness (150-400 words). Fully cite all sources (2+ sources are expected). 
 
-8. **Performance outcome via combination of optimization techniques** 
+8. **Performance outcome via combination of optimization techniques** (Mark: 2/50)
 
 The performance of stencil computations is primarily limited by memory system performance. Briefly explain whether a combination of two of the techniques mentioned above may alleviate this, and if so what are the performance trade-offs of such an approach. 
 
-9. **Implement an optimization technique** 
+9. **Implement an optimization technique** (Mark: 4/50)
 
 Implement an optimization to improve the performance of the parallel advection solver. This might be different from the ones discussed in question 7, but not necessarily. Evaluate the performance of the optimization technique on Gadi. Put your code in `parAdvectExtra()`, which is activated by the `-x` option. 
 
