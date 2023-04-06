@@ -126,16 +126,16 @@ static void updateBoundary(double *u, int ldu)
     // Task_2 solution end
 
     // 2D
-    int topProc = (rank + Q) % nprocs;
-    int botProc = (rank - Q + nprocs) % nprocs;
+    int topProc = (rank - Q + nprocs) % nprocs;
+    int botProc = (rank + Q) % nprocs;
 
     MPI_Request req[4];
     MPI_Status stat[4];
 
-    MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[0]);
-    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
-    MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[2]);
-    MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
+    MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
 
     MPI_Waitall(4, req, stat);
   }
@@ -153,23 +153,23 @@ static void updateBoundary(double *u, int ldu)
   {
     // as elements in a column in a 2d array are not location neighboring we need to define a new type column
     MPI_Datatype column_type;
-    MPI_Type_vector(M_loc, 1, N_loc + 2, MPI_DOUBLE, &column_type);
+    MPI_Type_vector(M_loc + 2, 1, N_loc + 2, MPI_DOUBLE, &column_type);
     // MPI_Type_vector(count, blocklen, stride, oldtype, newtype)
     MPI_Type_commit(&column_type);
 
     int col = rank / Q;
-    int scaledLeftProc = ((rank - col * Q + 1) % Q);
-    int scaledRightProc = ((rank - col * Q - 1 + Q) % Q);
+    int scaledLeftProc = ((rank - col * Q - 1 + Q) % Q);
     int leftProc = scaledLeftProc + col * Q;
+    int scaledRightProc = ((rank - col * Q + 1) % Q);
     int rightProc = scaledRightProc + col * Q;
 
     MPI_Request req[4];
     MPI_Status stat[4];
 
-    MPI_Isend(&V(u, 1, N_loc), 1, column_type, rightProc, HALO_TAG, comm, &req[0]);
-    MPI_Irecv(&V(u, 1, N_loc + 1), 1, column_type, rightProc, HALO_TAG, comm, &req[1]);
-    MPI_Isend(&V(u, 1, 1), 1, column_type, leftProc, HALO_TAG, comm, &req[2]);
-    MPI_Irecv(&V(u, 1, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[3]);
+    MPI_Isend(&V(u, 0, N_loc), 1, column_type, rightProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, 0, N_loc + 1), 1, column_type, rightProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, 0, 1), 1, column_type, leftProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, 0, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[3]);
 
     MPI_Waitall(4, req, stat);
   }
