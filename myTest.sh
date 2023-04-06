@@ -11,7 +11,7 @@ e= # echo
 r=100
 M=1000 # may need to make bigger
 N=$M
-opts="" # "-o"
+opts="-o" # "-o"
 ps="48 96 192"
 P=12
 
@@ -19,8 +19,8 @@ module load openmpi
 
 for p in $ps; do
     echo ""
-    echo mpirun -np $p ./testAdvect $opts -P $P -o $M $N $r
-    $e mpirun -np $p ./testAdvect $opts -P $P -o $M $N $r
+    echo mpirun -np $p ./testAdvect $opts -P $P $M $N $r
+    $e mpirun -np $p ./testAdvect $opts -P $P $M $N $r
     echo ""
 done
 
@@ -29,3 +29,6 @@ if [ ! -z "$PBS_NODEFILE" ] ; then
 fi
 
 exit
+
+
+# mpirun -np 4 ./testAdvect -o -P 2 10 10 100

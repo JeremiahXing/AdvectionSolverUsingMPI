@@ -270,7 +270,7 @@ void parAdvectOverlap(int reps, double *u, int ldu)
   assert(v != NULL);
   assert(ldu == N_loc + 2);
   MPI_Request req[8];
-  MPI_Status stat[4];
+  MPI_Status stat[8];
 
   // TODO: test implement overlap communication
 
