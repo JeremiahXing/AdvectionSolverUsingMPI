@@ -58,10 +58,24 @@ void initParParams(int M_, int N_, int P_, int Q_, int verb)
 
 void checkHaloSize(int w)
 {
+  // Old code
+  //  if (w > M_loc || w > N_loc)
+  //  {
+  //    printf("%d: w=%d too large for %dx%d local field! Exiting...\n",
+  //           rank, w, M_loc, N_loc);
+  //    exit(1);
+  //  }
+
+  // new code
+  int error = 0;
+  int global_error = 0;
   if (w > M_loc || w > N_loc)
+    error = 1;
+  MPI_Allreduce(&error, &global_error, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  if (global_error)
   {
-    printf("%d: w=%d too large for %dx%d local field! Exiting...\n",
-           rank, w, M_loc, N_loc);
+    if (rank == 0)
+      printf("Error: w=%d too large for some local fields! Exiting...\n", w);
     exit(1);
   }
 }
@@ -234,6 +248,77 @@ static void nonWaitUpdateBoundary(double *u, int ldu, MPI_Request *req, MPI_Stat
   }
 } // updateBoundaryOverlap()
 
+// TODO: implement this function
+static void wideUpdateBoundary(double *u, int ldu, int w)
+{
+  int i, j;
+
+  // top and bottom halo
+  // note: we get the left/right neighbour's corner elements from each end
+  if (P == 1)
+  {
+    for (j = w; j < N_loc + w; j++)
+    {
+      V(u, 0, j) = V(u, M_loc + w - 1, j);
+      V(u, M_loc + w, j) = V(u, w, j);
+    }
+  }
+  else
+  {
+    MPI_Datatype wide_row_type;
+    MPI_Type_vector(w, N_loc, N_loc + 2 * w, MPI_DOUBLE, &wide_row_type);
+    // MPI_Type_vector(count, blocklen, stride, oldtype, newtype)
+    MPI_Type_commit(&wide_row_type);
+
+    int topProc = (rank - Q + nprocs) % nprocs;
+    int botProc = (rank + Q) % nprocs;
+
+    MPI_Request req[4];
+    MPI_Status stat[4];
+
+    MPI_Isend(&V(u, M_loc, w), 1, wide_row_type, botProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, M_loc + w, w), 1, wide_row_type, botProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, w, w), 1, wide_row_type, topProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, 0, w), 1, wide_row_type, topProc, HALO_TAG, comm, &req[3]);
+
+    MPI_Waitall(4, req, stat);
+  }
+
+  // left and right sides of halo
+  if (Q == 1)
+  {
+    for (i = 0; i < M_loc + 2 * w; i++)
+    {
+      V(u, i, 0) = V(u, i, N_loc);
+      V(u, i, N_loc + w) = V(u, i, w);
+    }
+  }
+  else
+  {
+    // as elements in a column in a 2d array are not location neighboring we need to define a new type column
+    MPI_Datatype wide_column_type;
+    MPI_Type_vector(M_loc + 2 * w, w, N_loc + 2 * w, MPI_DOUBLE, &wide_column_type);
+    // MPI_Type_vector(count, blocklen, stride, oldtype, newtype)
+    MPI_Type_commit(&wide_column_type);
+
+    int col = rank / Q;
+    int scaledLeftProc = ((rank - col * Q - 1 + Q) % Q);
+    int leftProc = scaledLeftProc + col * Q;
+    int scaledRightProc = ((rank - col * Q + 1) % Q);
+    int rightProc = scaledRightProc + col * Q;
+
+    MPI_Request req[4];
+    MPI_Status stat[4];
+
+    MPI_Isend(&V(u, 0, N_loc), 1, wide_column_type, rightProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, 0, N_loc + w), 1, wide_column_type, rightProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, 0, w), 1, wide_column_type, leftProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, 0, 0), 1, wide_column_type, leftProc, HALO_TAG, comm, &req[3]);
+
+    MPI_Waitall(4, req, stat);
+  }
+} // wideUpdateBoundary()
+
 // evolve advection over r timesteps, with (u,ldu) containing the local field
 void parAdvect(int reps, double *u, int ldu)
 {
@@ -272,8 +357,6 @@ void parAdvectOverlap(int reps, double *u, int ldu)
   MPI_Request req[8];
   MPI_Status stat[8];
 
-  // TODO: test implement overlap communication
-
   for (r = 0; r < reps; r++)
   {
     // star communication in u for boundary but not wait msg to arrive
@@ -301,10 +384,31 @@ void parAdvectOverlap(int reps, double *u, int ldu)
   free(v);
 } // parAdvectOverlap()
 
+// TODO: implement parAdvectOverlapWide()
+// key idea: modify the communication function (updateBoundary())
 // wide halo variant
 void parAdvectWide(int reps, int w, double *u, int ldu)
 {
+  int r;
+  double *v;
+  int ldv = N_loc + 2 * w;
+  v = calloc(ldv * (M_loc + 2 * w), sizeof(double));
+  assert(v != NULL);
+  assert(ldu == N_loc + 2 * w);
 
+  for (r = 0; r < reps; r += w)
+  {
+    wideUpdateBoundary(u, ldu, w);
+    updateAdvectField(M_loc, N_loc, &V(u, w, w), ldu, &V(v, w, w), ldv);
+    copyField(M_loc, N_loc, &V(v, w, w), ldv, &V(u, w, w), ldu);
+
+    if (verbosity > 2)
+    {
+      char s[64];
+      sprintf(s, "%d reps: u", r + 1);
+      printAdvectField(rank, s, M_loc + 2 * w, N_loc + 2 * w, u, ldu);
+    }
+  }
 } // parAdvectWide()
 
 // extra optimization variant
