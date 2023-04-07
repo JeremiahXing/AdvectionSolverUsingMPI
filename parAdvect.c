@@ -399,9 +399,13 @@ void parAdvectWide(int reps, int w, double *u, int ldu)
   for (r = 0; r < reps; r += w)
   {
     wideUpdateBoundary(u, ldu, w);
+    for (int i = 1; i <= w - 1; i++)
+    {
+      updateAdvectField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(u, i, i), ldu, &V(v, i, i), ldv);
+      copyField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(v, i, i), ldv, &V(u, i, i), ldu);
+    }
     updateAdvectField(M_loc, N_loc, &V(u, w, w), ldu, &V(v, w, w), ldv);
     copyField(M_loc, N_loc, &V(v, w, w), ldv, &V(u, w, w), ldu);
-
     if (verbosity > 2)
     {
       char s[64];
