@@ -144,14 +144,13 @@ static void updateBoundary(double *u, int ldu)
     int botProc = (rank + Q) % nprocs;
 
     MPI_Request req[4];
-    MPI_Status stat[4];
 
     MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[0]);
     MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[2]);
     MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
 
-    MPI_Waitall(4, req, stat);
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
   }
 
   // left and right sides of halo
@@ -178,18 +177,44 @@ static void updateBoundary(double *u, int ldu)
     int rightProc = scaledRightProc + col * Q;
 
     MPI_Request req[4];
-    MPI_Status stat[4];
 
     MPI_Isend(&V(u, 0, N_loc), 1, column_type, rightProc, HALO_TAG, comm, &req[0]);
     MPI_Irecv(&V(u, 0, N_loc + 1), 1, column_type, rightProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, 0, 1), 1, column_type, leftProc, HALO_TAG, comm, &req[2]);
     MPI_Irecv(&V(u, 0, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[3]);
 
-    MPI_Waitall(4, req, stat);
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    MPI_Type_free(&column_type);
   }
 } // updateBoundary()
 
-// TODO: implement this function
+static void overlapUpdateBoundary(double *u, int ldu, MPI_Request *req)
+{
+  int j;
+
+  // top and bottom halo
+  // note: we get the left/right neighbour's corner elements from each end
+  if (P == 1)
+  {
+    for (j = 1; j < N_loc + 1; j++)
+    {
+      V(u, 0, j) = V(u, M_loc, j);
+      V(u, M_loc + 1, j) = V(u, 1, j);
+    }
+  }
+  else
+  {
+
+    int topProc = (rank - Q + nprocs) % nprocs;
+    int botProc = (rank + Q) % nprocs;
+
+    MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
+  }
+} // overlapUpdateBoundary()
+
 static void wideUpdateBoundary(double *u, int ldu, int w)
 {
   int i, j;
@@ -215,14 +240,14 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
     int botProc = (rank + Q) % nprocs;
 
     MPI_Request req[4];
-    MPI_Status stat[4];
 
     MPI_Isend(&V(u, M_loc, w), 1, wide_row_type, botProc, HALO_TAG, comm, &req[0]);
     MPI_Irecv(&V(u, M_loc + w, w), 1, wide_row_type, botProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, w, w), 1, wide_row_type, topProc, HALO_TAG, comm, &req[2]);
     MPI_Irecv(&V(u, 0, w), 1, wide_row_type, topProc, HALO_TAG, comm, &req[3]);
 
-    MPI_Waitall(4, req, stat);
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    MPI_Type_free(&wide_row_type);
   }
 
   // left and right sides of halo
@@ -249,20 +274,21 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
     int rightProc = scaledRightProc + col * Q;
 
     MPI_Request req[4];
-    MPI_Status stat[4];
 
     MPI_Isend(&V(u, 0, N_loc), 1, wide_column_type, rightProc, HALO_TAG, comm, &req[0]);
     MPI_Irecv(&V(u, 0, N_loc + w), 1, wide_column_type, rightProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, 0, w), 1, wide_column_type, leftProc, HALO_TAG, comm, &req[2]);
     MPI_Irecv(&V(u, 0, 0), 1, wide_column_type, leftProc, HALO_TAG, comm, &req[3]);
 
-    MPI_Waitall(4, req, stat);
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    MPI_Type_free(&wide_column_type);
   }
 } // wideUpdateBoundary()
 
 // evolve advection over r timesteps, with (u,ldu) containing the local field
 void parAdvect(int reps, double *u, int ldu)
 {
+  printf("P: %d, Q: %d, M_loc: %d, N_loc: %d\n", P, Q, M_loc, N_loc);
   int r;
   double *v;
   int ldv = N_loc + 2;
@@ -293,15 +319,25 @@ void parAdvectOverlap(int reps, double *u, int ldu)
   double *v;
   int ldv = N_loc + 2;
   v = calloc(ldv * (M_loc + 2), sizeof(double));
+  assert(Q == 1); // only works for Q=1
   assert(v != NULL);
   assert(ldu == N_loc + 2);
+  MPI_Request req[4];
 
   for (r = 0; r < reps; r++)
   {
+    // star communication in u for boundary but not wait msg to arrive
+    overlapUpdateBoundary(u, ldu, req);
     // compute v's inner independent part
     updateAdvectField(M_loc - 2, N_loc - 2, &V(u, 2, 2), ldu, &V(v, 2, 2), ldv);
-    // star communication in u for boundary but not wait msg to arrive
-    updateBoundary(u, ldu);
+    // wait for boundary msg to arrive
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+
+    for (int i = 0; i < M_loc + 2; i++)
+    {
+      V(u, i, 0) = V(u, i, N_loc);
+      V(u, i, N_loc + 1) = V(u, i, 1);
+    }
     // compute v's inner dependent part (inner halo) it takes 4 times(top/bottom/left/right)
     updateAdvectField(1, N_loc, &V(u, 1, 1), ldu, &V(v, 1, 1), ldv);             // top
     updateAdvectField(1, N_loc, &V(u, M_loc, 1), ldu, &V(v, M_loc, 1), ldv);     // bottom
@@ -321,7 +357,6 @@ void parAdvectOverlap(int reps, double *u, int ldu)
   free(v);
 } // parAdvectOverlap()
 
-// TODO: implement parAdvectOverlapWide()
 // key idea: modify the communication function (updateBoundary())
 // wide halo variant
 void parAdvectWide(int reps, int w, double *u, int ldu)
