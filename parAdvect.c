@@ -334,26 +334,25 @@ void parAdvectWide(int reps, int w, double *u, int ldu)
   assert(ldu == N_loc + 2 * w);
 
   for (r = 0; r < reps; r++)
-    for (r = 0; r < reps; r++)
+  {
+    wideUpdateBoundary(u, ldu, w);
+    for (int i = 1; i <= w - 1 && r < reps; i++, r++)
     {
-      wideUpdateBoundary(u, ldu, w);
-      for (int i = 1; i <= w - 1 && r < reps; i++, r++)
-      {
-        updateAdvectField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(u, i, i), ldu, &V(v, i, i), ldv);
-        copyField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(v, i, i), ldv, &V(u, i, i), ldu);
-      }
-      if (r < reps)
-      {
-        updateAdvectField(M_loc, N_loc, &V(u, w, w), ldu, &V(v, w, w), ldv);
-        copyField(M_loc, N_loc, &V(v, w, w), ldv, &V(u, w, w), ldu);
-      }
-      if (verbosity > 2)
-      {
-        char s[64];
-        sprintf(s, "%d reps: u", r + 1);
-        printAdvectField(rank, s, M_loc + 2 * w, N_loc + 2 * w, u, ldu);
-      }
+      updateAdvectField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(u, i, i), ldu, &V(v, i, i), ldv);
+      copyField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(v, i, i), ldv, &V(u, i, i), ldu);
     }
+    if (r < reps)
+    {
+      updateAdvectField(M_loc, N_loc, &V(u, w, w), ldu, &V(v, w, w), ldv);
+      copyField(M_loc, N_loc, &V(v, w, w), ldv, &V(u, w, w), ldu);
+    }
+    if (verbosity > 2)
+    {
+      char s[64];
+      sprintf(s, "%d reps: u", r + 1);
+      printAdvectField(rank, s, M_loc + 2 * w, N_loc + 2 * w, u, ldu);
+    }
+  }
 } // parAdvectWide()
 
 // extra optimization variant
