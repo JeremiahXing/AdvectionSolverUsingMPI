@@ -189,60 +189,6 @@ static void updateBoundary(double *u, int ldu)
   }
 } // updateBoundary()
 
-// static void nonWaitUpdateBoundary(double *u, int ldu, MPI_Request *req, MPI_Status *stat)
-// {
-//   int i, j;
-
-//   // top and bottom halo
-//   // note: we get the left/right neighbour's corner elements from each end
-//   if (P == 1)
-//   {
-//     for (j = 1; j < N_loc + 1; j++)
-//     {
-//       V(u, 0, j) = V(u, M_loc, j);
-//       V(u, M_loc + 1, j) = V(u, 1, j);
-//     }
-//   }
-//   else
-//   {
-//     int topProc = (rank - Q + nprocs) % nprocs;
-//     int botProc = (rank + Q) % nprocs;
-
-//     MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[0]);
-//     MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
-//     MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[2]);
-//     MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
-//   }
-
-//   // left and right sides of halo
-//   if (Q == 1)
-//   {
-//     for (i = 0; i < M_loc + 2; i++)
-//     {
-//       V(u, i, 0) = V(u, i, N_loc);
-//       V(u, i, N_loc + 1) = V(u, i, 1);
-//     }
-//   }
-//   else
-//   {
-//     // as elements in a column in a 2d array are not location neighboring we need to define a new type column
-//     MPI_Datatype column_type;
-//     MPI_Type_vector(M_loc + 2, 1, N_loc + 2, MPI_DOUBLE, &column_type);
-//     // MPI_Type_vector(count, blocklen, stride, oldtype, newtype)
-//     MPI_Type_commit(&column_type);
-
-//     int col = rank / Q;
-//     int scaledLeftProc = ((rank - col * Q - 1 + Q) % Q);
-//     int leftProc = scaledLeftProc + col * Q;
-//     int scaledRightProc = ((rank - col * Q + 1) % Q);
-//     int rightProc = scaledRightProc + col * Q;
-
-//     MPI_Isend(&V(u, 0, N_loc), 1, column_type, rightProc, HALO_TAG, comm, &req[4]);
-//     MPI_Irecv(&V(u, 0, N_loc + 1), 1, column_type, rightProc, HALO_TAG, comm, &req[5]);
-//     MPI_Isend(&V(u, 0, 1), 1, column_type, leftProc, HALO_TAG, comm, &req[6]);
-//     MPI_Irecv(&V(u, 0, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[7]);
-//   }
-// } // updateBoundaryOverlap()
 
 // TODO: implement this function
 static void wideUpdateBoundary(double *u, int ldu, int w)
@@ -388,18 +334,16 @@ void parAdvectWide(int reps, int w, double *u, int ldu)
   assert(v != NULL);
   assert(ldu == N_loc + 2 * w);
 
-  for (r = 0; r < reps;)
+  for (r = 0; r < reps; r++)
   {
     wideUpdateBoundary(u, ldu, w);
-    for (int i = 1; i <= w - 1 && r < reps; i++)
+    for (int i = 1; i <= w - 1 && r < reps; i++, r++)
     {
       updateAdvectField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(u, i, i), ldu, &V(v, i, i), ldv);
       copyField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(v, i, i), ldv, &V(u, i, i), ldu);
-      r++;
     }
     updateAdvectField(M_loc, N_loc, &V(u, w, w), ldu, &V(v, w, w), ldv);
     copyField(M_loc, N_loc, &V(v, w, w), ldv, &V(u, w, w), ldu);
-    r++;
     if (verbosity > 2)
     {
       char s[64];
