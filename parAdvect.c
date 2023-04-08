@@ -288,7 +288,7 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
 // evolve advection over r timesteps, with (u,ldu) containing the local field
 void parAdvect(int reps, double *u, int ldu)
 {
-  printf("P: %d, Q: %d, M_loc: %d, N_loc: %d\n", P, Q, M_loc, N_loc);
+  // printf("P: %d, Q: %d, M_loc: %d, N_loc: %d\n", P, Q, M_loc, N_loc);
   int r;
   double *v;
   int ldv = N_loc + 2;
