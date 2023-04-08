@@ -364,12 +364,15 @@ void parAdvectOverlap(int reps, double *u, int ldu)
     // compute v's inner independent part
     updateAdvectField(M_loc - 2, N_loc - 2, &V(u, 2, 2), ldu, &V(v, 2, 2), ldv);
     // wait for u's boundary msg to arrive
-    MPI_Waitall(8, req, stat);
+    if (P != 1)
+      MPI_Waitall(4, &req[0], &stat[0]);
+    if (Q != 1)
+      MPI_Waitall(4, &req[4], &stat[4]);
     // compute v's inner dependent part (inner halo) it takes 4 times(top/bottom/left/right)
-    updateAdvectField(1, N_loc, &V(u, 1, 1), ldu, &V(v, 1, 1), ldv);         // top
-    updateAdvectField(1, N_loc, &V(u, M_loc, 1), ldu, &V(v, M_loc, 1), ldv); // bottom
-    updateAdvectField(M_loc, 1, &V(u, 1, 1), ldu, &V(v, 1, 1), ldv);         // left
-    updateAdvectField(M_loc, 1, &V(u, 1, N_loc), ldu, &V(v, 1, N_loc), ldv); // right
+    updateAdvectField(1, N_loc, &V(u, 1, 1), ldu, &V(v, 1, 1), ldv);             // top
+    updateAdvectField(1, N_loc, &V(u, M_loc, 1), ldu, &V(v, M_loc, 1), ldv);     // bottom
+    updateAdvectField(M_loc - 2, 1, &V(u, 2, 1), ldu, &V(v, 2, 1), ldv);         // left
+    updateAdvectField(M_loc - 2, 1, &V(u, 2, N_loc), ldu, &V(v, 2, N_loc), ldv); // right
 
     // copy v to u
     copyField(M_loc, N_loc, &V(v, 1, 1), ldv, &V(u, 1, 1), ldu);
@@ -396,16 +399,18 @@ void parAdvectWide(int reps, int w, double *u, int ldu)
   assert(v != NULL);
   assert(ldu == N_loc + 2 * w);
 
-  for (r = 0; r < reps; r += w)
+  for (r = 0; r < reps;)
   {
     wideUpdateBoundary(u, ldu, w);
-    for (int i = 1; i <= w - 1; i++)
+    for (int i = 1; i <= w - 1 && r < reps; i++)
     {
       updateAdvectField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(u, i, i), ldu, &V(v, i, i), ldv);
       copyField(M_loc + 2 * (w - i), N_loc + 2 * (w - i), &V(v, i, i), ldv, &V(u, i, i), ldu);
+      r++;
     }
     updateAdvectField(M_loc, N_loc, &V(u, w, w), ldu, &V(v, w, w), ldv);
     copyField(M_loc, N_loc, &V(v, w, w), ldv, &V(u, w, w), ldu);
+    r++;
     if (verbosity > 2)
     {
       char s[64];

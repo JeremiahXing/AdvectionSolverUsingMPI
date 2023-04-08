@@ -14,8 +14,8 @@ N=$M
 opts1="" # "-o"
 opts2="-o"
 opts3="-w 200"
-p="192"
-P=12
+p="100"
+P=10
 
 module load openmpi
 
