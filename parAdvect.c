@@ -144,11 +144,11 @@ static void updateBoundary(double *u, int ldu)
     int botProc = (rank + Q) % nprocs;
 
     MPI_Request req[4];
-
+    // IT MUST BE bot top top bot!!!!
     MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[0]);
-    MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
+    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[2]);
-    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
+    MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[3]);
 
     MPI_Waitall(4, req, MPI_STATUS_IGNORE);
   }
@@ -179,9 +179,9 @@ static void updateBoundary(double *u, int ldu)
     MPI_Request req[4];
 
     MPI_Isend(&V(u, 0, N_loc), 1, column_type, rightProc, HALO_TAG, comm, &req[0]);
-    MPI_Irecv(&V(u, 0, N_loc + 1), 1, column_type, rightProc, HALO_TAG, comm, &req[1]);
+    MPI_Irecv(&V(u, 0, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, 0, 1), 1, column_type, leftProc, HALO_TAG, comm, &req[2]);
-    MPI_Irecv(&V(u, 0, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[3]);
+    MPI_Irecv(&V(u, 0, N_loc + 1), 1, column_type, rightProc, HALO_TAG, comm, &req[3]);
 
     MPI_Waitall(4, req, MPI_STATUS_IGNORE);
     MPI_Type_free(&column_type);
@@ -209,9 +209,9 @@ static void overlapUpdateBoundary(double *u, int ldu, MPI_Request *req)
     int botProc = (rank + Q) % nprocs;
 
     MPI_Isend(&V(u, M_loc, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[0]);
-    MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[1]);
+    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[2]);
-    MPI_Irecv(&V(u, 0, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[3]);
+    MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[3]);
   }
 } // overlapUpdateBoundary()
 
@@ -242,9 +242,9 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
     MPI_Request req[4];
 
     MPI_Isend(&V(u, M_loc, w), 1, wide_row_type, botProc, HALO_TAG, comm, &req[0]);
-    MPI_Irecv(&V(u, M_loc + w, w), 1, wide_row_type, botProc, HALO_TAG, comm, &req[1]);
+    MPI_Irecv(&V(u, 0, w), 1, wide_row_type, topProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, w, w), 1, wide_row_type, topProc, HALO_TAG, comm, &req[2]);
-    MPI_Irecv(&V(u, 0, w), 1, wide_row_type, topProc, HALO_TAG, comm, &req[3]);
+    MPI_Irecv(&V(u, M_loc + w, w), 1, wide_row_type, botProc, HALO_TAG, comm, &req[3]);
 
     MPI_Waitall(4, req, MPI_STATUS_IGNORE);
     MPI_Type_free(&wide_row_type);
@@ -276,9 +276,9 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
     MPI_Request req[4];
 
     MPI_Isend(&V(u, 0, N_loc), 1, wide_column_type, rightProc, HALO_TAG, comm, &req[0]);
-    MPI_Irecv(&V(u, 0, N_loc + w), 1, wide_column_type, rightProc, HALO_TAG, comm, &req[1]);
+    MPI_Irecv(&V(u, 0, 0), 1, wide_column_type, leftProc, HALO_TAG, comm, &req[1]);
     MPI_Isend(&V(u, 0, w), 1, wide_column_type, leftProc, HALO_TAG, comm, &req[2]);
-    MPI_Irecv(&V(u, 0, 0), 1, wide_column_type, leftProc, HALO_TAG, comm, &req[3]);
+    MPI_Irecv(&V(u, 0, N_loc + w), 1, wide_column_type, rightProc, HALO_TAG, comm, &req[3]);
 
     MPI_Waitall(4, req, MPI_STATUS_IGNORE);
     MPI_Type_free(&wide_column_type);
