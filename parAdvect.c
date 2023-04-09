@@ -30,19 +30,6 @@ void initParParams(int M_, int N_, int P_, int Q_, int verb)
   MPI_Comm_rank(comm, &rank);
   MPI_Comm_size(comm, &nprocs);
 
-  // original code snips (1D)
-  // P0 = rank;
-  // M0 = (M / P) * P0; //the starting row (M0)
-  // M_loc = (P0 < P-1)? (M / P): (M - M0); //local number of rows (M_loc)
-  // // Why this M_loc need ?: operation
-  // //-- in case M cant divided by P, e.g. m = 8 and p = 3 then p0 takes 2; p1 takes 2; p2 takes 4
-
-  // assert (Q == 1);
-  // Q0 = 0;
-  // N0 = 0;
-  // N_loc = N;
-  // original code snips end
-
   // 2D
   P0 = rank / Q;
   Q0 = rank % Q;
@@ -188,7 +175,7 @@ static void updateBoundary(double *u, int ldu)
   }
 } // updateBoundary()
 
-static void overlapUpdateBoundary(double *u, int ldu, MPI_Request *req)
+static void overlapUpdateBoundaryTB(double *u, int ldu, MPI_Request *req)
 {
   int j;
 
@@ -204,7 +191,6 @@ static void overlapUpdateBoundary(double *u, int ldu, MPI_Request *req)
   }
   else
   {
-
     int topProc = (rank - Q + nprocs) % nprocs;
     int botProc = (rank + Q) % nprocs;
 
@@ -213,7 +199,44 @@ static void overlapUpdateBoundary(double *u, int ldu, MPI_Request *req)
     MPI_Isend(&V(u, 1, 1), N_loc, MPI_DOUBLE, topProc, HALO_TAG, comm, &req[2]);
     MPI_Irecv(&V(u, M_loc + 1, 1), N_loc, MPI_DOUBLE, botProc, HALO_TAG, comm, &req[3]);
   }
-} // overlapUpdateBoundary()
+} // overlapUpdateBoundaryTB()
+
+static void overlapUpdateBoundaryLR(double *u, int ldu)
+{
+  int i;
+  if (Q == 1)
+  {
+    for (i = 0; i < M_loc + 2; i++)
+    {
+      V(u, i, 0) = V(u, i, N_loc);
+      V(u, i, N_loc + 1) = V(u, i, 1);
+    }
+  }
+  else
+  {
+    // as elements in a column in a 2d array are not location neighboring we need to define a new type column
+    MPI_Datatype column_type;
+    MPI_Type_vector(M_loc + 2, 1, N_loc + 2, MPI_DOUBLE, &column_type);
+    // MPI_Type_vector(count, blocklen, stride, oldtype, newtype)
+    MPI_Type_commit(&column_type);
+
+    int col = rank / Q;
+    int scaledLeftProc = ((rank - col * Q - 1 + Q) % Q);
+    int leftProc = scaledLeftProc + col * Q;
+    int scaledRightProc = ((rank - col * Q + 1) % Q);
+    int rightProc = scaledRightProc + col * Q;
+
+    MPI_Request req[4];
+
+    MPI_Isend(&V(u, 0, N_loc), 1, column_type, rightProc, HALO_TAG, comm, &req[0]);
+    MPI_Irecv(&V(u, 0, 0), 1, column_type, leftProc, HALO_TAG, comm, &req[1]);
+    MPI_Isend(&V(u, 0, 1), 1, column_type, leftProc, HALO_TAG, comm, &req[2]);
+    MPI_Irecv(&V(u, 0, N_loc + 1), 1, column_type, rightProc, HALO_TAG, comm, &req[3]);
+
+    MPI_Waitall(4, req, MPI_STATUS_IGNORE);
+    MPI_Type_free(&column_type);
+  }
+} // overlapUpdateBoundaryLR()
 
 static void wideUpdateBoundary(double *u, int ldu, int w)
 {
@@ -319,25 +342,20 @@ void parAdvectOverlap(int reps, double *u, int ldu)
   double *v;
   int ldv = N_loc + 2;
   v = calloc(ldv * (M_loc + 2), sizeof(double));
-  assert(Q == 1); // only works for Q=1
   assert(v != NULL);
   assert(ldu == N_loc + 2);
   MPI_Request req[4];
 
   for (r = 0; r < reps; r++)
   {
-    // star communication in u for boundary but not wait msg to arrive
-    overlapUpdateBoundary(u, ldu, req);
+    // star communication in u for top and bottom boundary but not wait msg to arrive
+    overlapUpdateBoundaryTB(u, ldu, req);
     // compute v's inner independent part
     updateAdvectField(M_loc - 2, N_loc - 2, &V(u, 2, 2), ldu, &V(v, 2, 2), ldv);
     // wait for boundary msg to arrive
     MPI_Waitall(4, req, MPI_STATUS_IGNORE);
-
-    for (int i = 0; i < M_loc + 2; i++)
-    {
-      V(u, i, 0) = V(u, i, N_loc);
-      V(u, i, N_loc + 1) = V(u, i, 1);
-    }
+    // update left and right boundary
+    overlapUpdateBoundaryLR(u, ldu);
     // compute v's inner dependent part (inner halo) it takes 4 times(top/bottom/left/right)
     updateAdvectField(1, N_loc, &V(u, 1, 1), ldu, &V(v, 1, 1), ldv);             // top
     updateAdvectField(1, N_loc, &V(u, M_loc, 1), ldu, &V(v, M_loc, 1), ldv);     // bottom
