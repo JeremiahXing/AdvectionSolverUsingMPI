@@ -408,7 +408,7 @@ void parAdvectWide(int reps, int w, double *u, int ldu)
   }
 } // parAdvectWide()
 
-// extra optimization variant
+// extra optimization v ariant
 void parAdvectExtra(int r, double *u, int ldu)
 {
 
