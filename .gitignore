@@ -4,4 +4,7 @@
 *.bak
 testAdvect
 .vscode
+measure_ts
+measure_tf
+measure_tw
 measure

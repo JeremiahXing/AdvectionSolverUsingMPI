@@ -12,7 +12,7 @@ r=100
 M=1000 # may need to be bigger
 N=$M
 opts="" # "-o" 
-ps="3 6 12 24 48"
+ps="1 3 6 12 24 48"
 P=1
 module load openmpi
 
