@@ -9,7 +9,7 @@
 e= #echo
 
 r=100
-M=10000 # may need to be bigger
+M=1000 # may need to be bigger
 N=$M
 opts="" # "-o" 
 ps="3 6 12 24 48"

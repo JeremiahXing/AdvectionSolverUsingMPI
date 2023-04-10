@@ -9,13 +9,13 @@
 e= # echo
 
 r=100
-M=10000 # may need to make bigger
+M=20 # may need to make bigger
 N=$M
 opts1="" # "-o"
 opts2="-o"
-opts3="-w 200"
-p="192"
-P=12
+opts3="-w 2"
+p="9"
+P=3
 
 module load openmpi
 
