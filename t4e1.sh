@@ -3,24 +3,23 @@
 #PBS -j oe
 #PBS -l walltime=00:01:00,mem=128GB
 #PBS -l wd
-#PBS -l ncpus=192
+#PBS -l ncpus=48
 #
 
-e= # echo
+e= #echo
 
 r=100
-M=1000 # may need to make bigger
+M=1000 # may need to be bigger
 N=$M
-opts="" # "-o"
-ps="48 96 144 192"
-P=12
-
+opts="" # "-o" 
+ps="1 3 4 6 9 12 18 36"
+np=36
 module load openmpi
 
 for p in $ps; do
     echo ""
-    echo mpirun -np $p ./testAdvect $opts -P $P $M $N $r
-    $e mpirun -np $p ./testAdvect $opts -P $P $M $N $r
+    echo mpirun -np $np ./testAdvect $opts -P $p $M $N $r
+    $e mpirun -np $np ./testAdvect $opts -P $p $M $N $r
     echo ""
 done
 

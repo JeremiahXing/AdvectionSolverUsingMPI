@@ -12,15 +12,15 @@ r=100
 M=1000 # may need to make bigger
 N=$M
 opts="" # "-o"
-ps="48 96 144 192"
-P=12
+ps="2 3 4 6 8 12 16 24 32 48 64"
+
 
 module load openmpi
 
 for p in $ps; do
     echo ""
-    echo mpirun -np $p ./testAdvect $opts -P $P $M $N $r
-    $e mpirun -np $p ./testAdvect $opts -P $P $M $N $r
+    echo mpirun -np 144 ./testAdvect $opts -P $p $M $N $r
+    $e mpirun -np 144 ./testAdvect $opts -P $p $M $N $r
     echo ""
 done
 
