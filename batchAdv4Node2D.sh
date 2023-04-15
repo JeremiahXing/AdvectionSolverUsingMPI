@@ -11,7 +11,7 @@ e= # echo
 r=100
 M=1000 # may need to make bigger
 N=$M
-opts="" # "-o"
+opts="-w 5" # "-o"
 ps="48 96 144 192"
 P=12
 

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include <assert.h>
+#include <math.h>
 
 #include "serAdvect.h"
 
@@ -412,7 +413,49 @@ void parAdvectWide(int reps, int w, double *u, int ldu)
 } // parAdvectWide()
 
 // extra optimization variant
-void parAdvectExtra(int r, double *u, int ldu)
+void parAdvectExtra(int reps, double *u, int ldu)
 {
+  int r;
+  double *v;
+  // L3 cache of the Intel Xeon 8274 (Cascade Lake) is 35.75 MB
+  int tileSize = (int)sqrt((15 * 1024 * 1024) / (sizeof(double) * 8));
+  int ldv = tileSize;
+  // int ldw = tileSize + 2;
+  v = calloc(ldv * (tileSize), sizeof(double));
+  // w = calloc(ldw * (tileSize + 2), sizeof(double));
+  assert(v != NULL);
+  // assert(w != NULL);
+  assert(ldu == N_loc + 2);
 
+  for (r = 0; r < reps; r++)
+  {
+    updateBoundary(u, ldu);
+
+    // Apply the tiled stencil technique
+    for (int i_start = 1; i_start <= M_loc; i_start += tileSize)
+    {
+      for (int j_start = 1; j_start <= N_loc; j_start += tileSize)
+      {
+        int i_end = i_start + tileSize <= M_loc ? i_start + tileSize : M_loc + 1;
+        int j_end = j_start + tileSize <= N_loc ? j_start + tileSize : N_loc + 1;
+        int i_size = i_end - i_start;
+        int j_size = j_end - j_start;
+        updateAdvectField(i_size, j_size, &V(u, i_start, j_start), ldu, &V(v, 0, 0), ldv);
+        // copyField(i_size + 2, j_size + 2, &V(u, i_start - 1, j_start - 1), ldu, &V(w, 0, 0), ldw);
+        // updateAdvectField(i_size, j_size, &V(w, 1, 1), ldw, &V(v, 1, 1), ldv);
+        copyField(i_size, j_size, &V(v, 0, 0), ldv, &V(u, i_start, j_start), ldu);
+      }
+    }
+
+    // copyField(M_loc, N_loc, &V(v, 1, 1), ldv, &V(u, 1, 1), ldu);
+
+    if (verbosity > 2)
+    {
+      char s[64];
+      sprintf(s, "%d reps: u", r + 1);
+      printAdvectField(rank, s, M_loc + 2, N_loc + 2, u, ldu);
+    }
+  }
+  free(v);
+  // free(w);
 } // parAdvectExtra()
