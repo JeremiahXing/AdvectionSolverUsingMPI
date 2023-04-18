@@ -312,7 +312,6 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
 // evolve advection over r timesteps, with (u,ldu) containing the local field
 void parAdvect(int reps, double *u, int ldu)
 {
-  // printf("P: %d, Q: %d, M_loc: %d, N_loc: %d\n", P, Q, M_loc, N_loc);
   int r;
   double *v;
   int ldv = N_loc + 2;
@@ -417,37 +416,19 @@ void parAdvectExtra(int reps, double *u, int ldu)
 {
   int r;
   double *v;
-  // L3 cache of the Intel Xeon 8274 (Cascade Lake) is 35.75 MB
-  int tileSize = (int)sqrt((15 * 1024 * 1024) / (sizeof(double) * 8));
-  int ldv = tileSize;
-  // int ldw = tileSize + 2;
-  v = calloc(ldv * (tileSize), sizeof(double));
-  // w = calloc(ldw * (tileSize + 2), sizeof(double));
+  double *old, *new;
+  int ldv = N_loc + 2;
+  v = calloc(ldv * (M_loc + 2), sizeof(double));
   assert(v != NULL);
-  // assert(w != NULL);
   assert(ldu == N_loc + 2);
-
   for (r = 0; r < reps; r++)
   {
+    old = u;
+    new = v;
     updateBoundary(u, ldu);
-
-    // Apply the tiled stencil technique
-    for (int i_start = 1; i_start <= M_loc; i_start += tileSize)
-    {
-      for (int j_start = 1; j_start <= N_loc; j_start += tileSize)
-      {
-        int i_end = i_start + tileSize <= M_loc ? i_start + tileSize : M_loc + 1;
-        int j_end = j_start + tileSize <= N_loc ? j_start + tileSize : N_loc + 1;
-        int i_size = i_end - i_start;
-        int j_size = j_end - j_start;
-        updateAdvectField(i_size, j_size, &V(u, i_start, j_start), ldu, &V(v, 0, 0), ldv);
-        // copyField(i_size + 2, j_size + 2, &V(u, i_start - 1, j_start - 1), ldu, &V(w, 0, 0), ldw);
-        // updateAdvectField(i_size, j_size, &V(w, 1, 1), ldw, &V(v, 1, 1), ldv);
-        copyField(i_size, j_size, &V(v, 0, 0), ldv, &V(u, i_start, j_start), ldu);
-      }
-    }
-
-    // copyField(M_loc, N_loc, &V(v, 1, 1), ldv, &V(u, 1, 1), ldu);
+    updateAdvectField(M_loc, N_loc, &V(u, 1, 1), ldu, &V(v, 1, 1), ldv);
+    u = new;
+    v = old;
 
     if (verbosity > 2)
     {
@@ -456,6 +437,12 @@ void parAdvectExtra(int reps, double *u, int ldu)
       printAdvectField(rank, s, M_loc + 2, N_loc + 2, u, ldu);
     }
   }
+  if (reps % 2 == 1)
+  {
+    double *temp = u;
+    u = v;
+    v = temp;
+    copyField(M_loc, N_loc, &V(v, 1, 1), ldv, &V(u, 1, 1), ldu);
+  }
   free(v);
-  // free(w);
 } // parAdvectExtra()

@@ -1,21 +1,22 @@
 #!/bin/bash
 #PBS -q express
 #PBS -j oe
-#PBS -l walltime=00:01:00,mem=128GB
+#PBS -l walltime=00:01:00,mem=4GB
 #PBS -l wd
-#PBS -l ncpus=192
+#PBS -l ncpus=4
 #
 
 e= # echo
 
 r=100
-M=20 # may need to make bigger
+M=1000 # may need to make bigger
 N=$M
 opts1="" # "-o"
 opts2="-o"
 opts3="-w 2"
-p="9"
-P=3
+opts4="-x"
+p="4"
+P=2
 
 module load openmpi
 
@@ -32,6 +33,11 @@ echo ""
 echo ""
 echo mpirun -np $p ./testAdvect $opts3 -P $P $M $N $r
 $e mpirun -np $p ./testAdvect $opts3 -P $P $M $N $r
+echo ""
+
+echo ""
+echo mpirun -np $p ./testAdvect $opts4 -P $P $M $N $r
+$e mpirun -np $p ./testAdvect $opts4 -P $P $M $N $r
 echo ""
 
 
