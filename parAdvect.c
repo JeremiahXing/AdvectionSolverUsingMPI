@@ -62,9 +62,11 @@ void checkHaloSize(int w)
   MPI_Allreduce(&error, &global_error, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
   if (global_error)
   {
+    // free(u);
+    MPI_Finalize();
     if (rank == 0)
       printf("Error: w=%d invalid for some local fields! Exiting...\n", w);
-    exit(1);
+    exit(0);
   }
 }
 
@@ -247,10 +249,13 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
   // note: we get the left/right neighbour's corner elements from each end
   if (P == 1)
   {
-    for (j = w; j < N_loc + w; j++)
+    for (int k = 0; k < w; k++)
     {
-      V(u, 0, j) = V(u, M_loc + w - 1, j);
-      V(u, M_loc + w, j) = V(u, w, j);
+      for (j = w; j < N_loc + w; j++)
+      {
+        V(u, k, j) = V(u, M_loc + k, j);
+        V(u, M_loc + w + k, j) = V(u, w + k, j);
+      }
     }
   }
   else
@@ -277,10 +282,13 @@ static void wideUpdateBoundary(double *u, int ldu, int w)
   // left and right sides of halo
   if (Q == 1)
   {
-    for (i = 0; i < M_loc + 2 * w; i++)
+    for (int k = 0; k < w; k++)
     {
-      V(u, i, 0) = V(u, i, N_loc);
-      V(u, i, N_loc + w) = V(u, i, w);
+      for (i = 0; i < M_loc + 2 * w; i++)
+      {
+        V(u, i, k) = V(u, i, N_loc + k);
+        V(u, i, N_loc + w + k) = V(u, i, w + k);
+      }
     }
   }
   else
